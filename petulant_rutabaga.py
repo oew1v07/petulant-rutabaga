@@ -260,22 +260,26 @@ def ngrams(collection_handle, database, n=1):
     # Create map function
     if n == 1:
         mapfunction = Code("""function() {
-                                        var res = this.text.toLowerCase().replace(/\W+/g, " ");
+                                        var res = this.text.toLowerCase().replace(/[^a-zA-Z_0-9 ]/g, " ");
                                         var texts = res.split(" ");
                                         texts.forEach(function(entry){
+                                                                        if (entry != "") {
                                                                         emit(entry, 1);
+                                                                        }
                                                                      })
 
                                          }""")
     else:
         mapfunction = Code("""function() {
-                                        var res = this.text.toLowerCase().replace(/\W+/g, "");
-                                        var texts = res.split(" ");
-                                        for (var i = 0; i < values.length - 1; i++) {
+                    var res = this.text.toLowerCase().replace(/\W+/g, " ");
+                    var texts = res.split(" ");
+                    for (var i = 0; i < texts.length - 1; i++) {
+                        var res1 = texts[i];
+                        var res2 = texts[i+1];
+                        emit(res1.concat(" ", res2), 1)
+                                                               }
 
-                                                                                }
-
-                                         }""")
+                     }""")
 
 
     # Create reduce function
