@@ -211,10 +211,14 @@ def first_and_last(collection_handle):
 
 
 def mean_time_delta(collection_handle):
-# Two different stackoverflow questions suggest that this is impossible in
-# pure mongo queries therefore I am using python to be able to do this.
+    # Two different stackoverflow questions suggest that this is impossible in
+    # pure mongo queries therefore I am using python to be able to do this.
 
-    cur = collection_handle.find()
+    cur = collection_handle.aggregate(
+        [
+            { "$sort": { "timestamp":1 }},
+        ], allowDiskUse=True
+    )
     first = True
     pattern = '%Y-%m-%d %H:%M:%S'
 
@@ -223,6 +227,7 @@ def mean_time_delta(collection_handle):
     for document in cur:
         if first is True:
             last_time = datetime.strptime(document["timestamp"],pattern)
+            print(last_time)
             first = False
         else:
             this_time = datetime.strptime(document["timestamp"],pattern)
@@ -231,7 +236,7 @@ def mean_time_delta(collection_handle):
             last_time = this_time
 
     mean_time_delta = np.mean(time_deltas)
-    return mean_time_delta
+    return mean_time_delta, time_deltas
 
 
 def mean_length(collection_handle):
