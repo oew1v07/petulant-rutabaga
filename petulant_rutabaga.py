@@ -7,6 +7,7 @@ from json import load
 from datetime import datetime
 import numpy as np
 from bson import Code
+import sys
 
 # First things first load in csv as pandas dataframe for ease of conversion
 
@@ -357,6 +358,8 @@ def mean_hash(collection_handle):
     return m_length
 
 def area_agg(collection_handle, database, dp = 2):
+    top_ten_places = []
+
     to_multiply = 10**dp
 
     mapfunction = Code("""function() {
@@ -430,6 +433,8 @@ def run_entire_pipeline(filename):
 
     mean_hash = mean_hash(db.tweets)
 
+    # Query number 8
+
 
 def just_queries():
 
@@ -459,3 +464,13 @@ def just_queries():
     # Query number 7
 
     mean_hash = mean_hash(db.tweets)
+
+if __name__ == '__main__':
+    # if the commange line has two arguments then the csv filename has been provided
+    # provided
+    if len(sys.argv) == 2:
+        filename = sys.argv[2]
+        run_entire_pipeline(filename)
+    else:
+        print("Usage: python petulant_rutabaga.py csv_filename")
+        sys.exit()
