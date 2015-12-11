@@ -227,11 +227,10 @@ def mean_time_delta(collection_handle):
     for document in cur:
         if first is True:
             last_time = datetime.strptime(document["timestamp"],pattern)
-            print(last_time)
             first = False
         else:
             this_time = datetime.strptime(document["timestamp"],pattern)
-            time_delta = (last_time - this_time).total_seconds()
+            time_delta = (this_time - last_time).total_seconds()
             time_deltas.append(time_delta)
             last_time = this_time
 
