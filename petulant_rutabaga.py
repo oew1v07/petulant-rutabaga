@@ -55,15 +55,14 @@ def load_csv(filename):
                     except Exception:
                         # If it got this far then there were more than 6 elements
                         # in the data.
-                        print("Did not load this item into the list. "
-                        " It was row {}".format(index))
+                        #print("Did not load this item into the list. "
+                        #" It was row {}".format(index))
                         bad_rows += 1
                     list_of_dicts.append(result)
             except Exception:
-                print('It went wrong after line {}'.format(line))
+                #print('It went wrong after line {}'.format(line))
                 bad_rows += 1
                 continue
-            print(line)
     return list_of_dicts, bad_rows
 # 1106 lines aren't being put in database.
 # list_of_dicts is in data.json
@@ -108,7 +107,7 @@ def find_duplicates(collection_handle, database):
             { "$match": { "count": 2 } },
             { "$out": "items_to_delete"}
         ], allowDiskUse=True
-    );
+    )
 
     count = database.items_to_delete.count()
 
@@ -123,7 +122,6 @@ def find_duplicates(collection_handle, database):
     for i in cur:
         remove = database.tweets.delete_one({"id" : i['_id']})
         removed.append(remove.deleted_count)
-        print("Item removed")
 
     print("{} items removed".format(sum(removed)))
 
@@ -315,7 +313,7 @@ def ngrams(collection_handle, database, n=1):
     )
 
     for i in cur:
-        print(i)
+        #print(i)
         top_ten_ngrams.append(i['_id'])
 
     if n == 1:
@@ -323,7 +321,7 @@ def ngrams(collection_handle, database, n=1):
     else:
         word = 'bigram'
 
-        print("The most common {}s are :".format(word), top_ten_ngrams)
+    print("The most common {}s are :".format(word), top_ten_ngrams)
     return top_ten_ngrams
 
 
@@ -363,8 +361,8 @@ def area_agg(collection_handle, database, dp = 2):
     to_multiply = 10**dp
 
     mapfunction = Code("""function() {
-                       var res_lat = this.geo_lat.replace(/[^0-9.]/g, "");
-                       var res_lng = this.geo_lng.replace(/[^0-9.]/g, "");
+                       var res_lat = this.geo_lat.replace(/[^0-9.\-]/g, "");
+                       var res_lng = this.geo_lng.replace(/[^0-9.\-]/g, "");
                        var res1_lat = Math.round(parseFloat(res_lat)*%d)/%d;
                        var res1_lng = Math.round(parseFloat(res_lng)*%d)/%d;
                        var lat = res1_lat.toString();
@@ -381,7 +379,7 @@ def area_agg(collection_handle, database, dp = 2):
     result = collection_handle.map_reduce(mapfunction, reducefunction,
                                           "geog", full_reponse=True)
 
-   
+
     coll = database.geog
 
     cur = coll.aggregate(
@@ -402,14 +400,18 @@ def area_agg(collection_handle, database, dp = 2):
 
 def run_entire_pipeline(filename):
     # Filename is the csvfile to be given
+    print("Loading CSV")
     list_of_dicts, bad_rows = load_csv(filename)
 
+    print("Inserting in to DB")
     db = access_database()
-    db.tweets = insert_into_db(db, list_of_dicts)
-    db.items_to_delete, deleted_count = find_duplicates(db.tweets, db)
+    db.tweets = insert_into_db(db, list_of_dicts[1:])
+
+    print("Removing duplicates")
+    items_to_delete, deleted_count = find_duplicates(db.tweets, db)
 
     # Query number 1
-    database.out_uni_users, unique_count = unique_users(db.tweets, db)
+    out_uni_users, unique_count = unique_users(db.tweets, db)
 
     # Query number 2
     total_tweets_10, top_ten_perc = top_ten_tweet_perc(db.out_uni_users, db)
@@ -418,10 +420,10 @@ def run_entire_pipeline(filename):
     first_time, last_time = first_and_last(db.tweets)
 
     # Query number 4
-    mean_time_delta = mean_time_delta(db.tweets)
+    mean_time_delta_result = mean_time_delta(db.tweets)
 
     # Query number 5
-    mean_length = mean_length(db.tweets)
+    mean_length_result = mean_length(db.tweets)
 
     # Query number 6
 
@@ -431,7 +433,7 @@ def run_entire_pipeline(filename):
 
     # Query number 7
 
-    mean_hash = mean_hash(db.tweets)
+    mean_hash_result = mean_hash(db.tweets)
 
     # Query number 8
 
@@ -469,7 +471,7 @@ if __name__ == '__main__':
     # if the commange line has two arguments then the csv filename has been provided
     # provided
     if len(sys.argv) == 2:
-        filename = sys.argv[2]
+        filename = sys.argv[1]
         run_entire_pipeline(filename)
     else:
         print("Usage: python petulant_rutabaga.py csv_filename")
