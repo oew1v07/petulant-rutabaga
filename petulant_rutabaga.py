@@ -234,8 +234,9 @@ def mean_time_delta(collection_handle):
             time_deltas.append(time_delta)
             last_time = this_time
 
-    mean_time_delta = np.mean(time_deltas)
-    return mean_time_delta, time_deltas
+    avg_time_delta = np.mean(time_deltas)
+    print("The mean time delta was %.2f seconds" % avg_time_delta)
+    return avg_time_delta, time_deltas
 
 
 def mean_length(collection_handle):
@@ -255,7 +256,7 @@ def mean_length(collection_handle):
 
     m_length = (result.find().next())['value']
 
-    print("The mean text length is {}".format(m_length))
+    print("The mean text length is %.0f" % m_length)
     return m_length
 
 
@@ -275,13 +276,15 @@ def ngrams(collection_handle, database, n=1):
                                          }""")
     else:
         mapfunction = Code("""function() {
-                    var res = this.text.toLowerCase().replace(/\W+/g, " ");
+                    var res = this.text.toLowerCase().replace(/[^a-zA-Z_0-9 ]/g, "");
                     var texts = res.split(" ");
                     for (var i = 0; i < texts.length - 1; i++) {
                         var res1 = texts[i];
                         var res2 = texts[i+1];
-                        emit(res1.concat(" ", res2), 1)
-                                                               }
+                        if (res1 != "" && res1 != " " && res2 != "" && res2 != " ") {
+                        emit(res1.concat(" ", res2), 1);
+                        }
+                    }
 
                      }""")
 
@@ -350,8 +353,48 @@ def mean_hash(collection_handle):
 
     m_length = (result.find().next())['value']
 
-    print("The mean number of hashtags per message is {}".format(m_length))
+    print("The mean number of hashtags per message is %.2f" % m_length)
     return m_length
+
+def area_agg(collection_handle, database, dp = 2):
+    to_multiply = 10**dp
+
+    mapfunction = Code("""function() {
+                       var res_lat = this.geo_lat.replace(/[^0-9.]/g, "");
+                       var res_lng = this.geo_lng.replace(/[^0-9.]/g, "");
+                       var res1_lat = Math.round(parseFloat(res_lat)*%d)/%d;
+                       var res1_lng = Math.round(parseFloat(res_lng)*%d)/%d;
+                       var lat = res1_lat.toString();
+                       var lng = res1_lng.toString();
+                       var latlng = lat.concat(" ", lng);
+                       emit(latlng, 1);
+
+                     }""" % (to_multiply, to_multiply, to_multiply, to_multiply))
+
+    reducefunction = Code("""function(key, values) {
+                                                    return Array.sum(values);
+                                                   }""")
+
+    result = collection_handle.map_reduce(mapfunction, reducefunction,
+                                          "geog", full_reponse=True)
+
+   
+    coll = database.geog
+
+    cur = coll.aggregate(
+        [
+            { "$sort": {"value":-1}},
+            { "$limit": 10}
+        ]
+    )
+
+    for i in cur:
+        print(i)
+        top_ten_places.append(i['_id'])
+
+    print("The most common place are :", top_ten_places[0])
+
+    return top_ten_places
 
 
 def run_entire_pipeline(filename):
