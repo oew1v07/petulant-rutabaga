@@ -391,10 +391,10 @@ def area_agg(collection_handle, database, dp = 2):
     )
 
     for i in cur:
-        print(i)
+        #print(i)
         top_ten_places.append(i['_id'])
 
-    print("The most common place are :", top_ten_places[0])
+    print("The most common place is:", top_ten_places[0])
 
     return top_ten_places
 
@@ -471,10 +471,10 @@ def just_queries():
     mean_hash = mean_hash(db.tweets)
 
     # Query number 8
-    top_ten_places = area_agg(collection_handle, database, dp = 2)
+    top_ten_places = area_agg(db.tweets, db, dp = 2)
 
 if __name__ == '__main__':
-    # if the commange line has two arguments then the csv filename has been provided
+    # if the commange line has two arguments then the csv filename has been
     # provided
     if len(sys.argv) == 2:
         filename = sys.argv[1]
