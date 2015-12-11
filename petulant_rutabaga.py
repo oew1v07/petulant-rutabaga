@@ -355,6 +355,7 @@ def mean_hash(collection_handle):
     print("The mean number of hashtags per message is %.2f" % m_length)
     return m_length
 
+
 def area_agg(collection_handle, database, dp = 2):
     top_ten_places = []
 
@@ -437,6 +438,8 @@ def run_entire_pipeline(filename):
 
     # Query number 8
 
+    top_ten_places = area_agg(collection_handle, database, dp = 2)
+
 
 def just_queries():
 
@@ -466,6 +469,9 @@ def just_queries():
     # Query number 7
 
     mean_hash = mean_hash(db.tweets)
+
+    # Query number 8
+    top_ten_places = area_agg(collection_handle, database, dp = 2)
 
 if __name__ == '__main__':
     # if the commange line has two arguments then the csv filename has been provided
