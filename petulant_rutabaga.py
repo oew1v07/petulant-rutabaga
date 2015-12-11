@@ -264,10 +264,10 @@ def ngrams(collection_handle, database, n=1):
     # Create map function
     if n == 1:
         mapfunction = Code("""function() {
-                                        var res = this.text.toLowerCase().replace(/[^a-zA-Z_0-9 ]/g, " ");
+                                        var res = this.text.toLowerCase().replace(/[^a-zA-Z_0-9 ]/g, "");
                                         var texts = res.split(" ");
                                         texts.forEach(function(entry){
-                                                                        if (entry != "") {
+                                                                        if (entry != "" && entry != " ") {
                                                                         emit(entry, 1);
                                                                         }
                                                                      })
