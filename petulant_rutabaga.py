@@ -66,10 +66,7 @@ def load_csv(filename):
     return list_of_dicts, bad_rows
 # 1106 lines aren't being put in database.
 # list_of_dicts is in data.json
-# Need to clean data
-# - sort out missing values like ":", "", "whitespace"
-# - put dates into proper date format
-# - make geo_lng and geo_lat numbers
+
 
 def load_json(filename):
     """ Takes a filename and tries to read it in as a json file"""
@@ -82,36 +79,19 @@ def load_json(filename):
 
     return out
 
-def insert_into_db(list_of_dicts):
+
+def access_database():
     client = MongoClient()
     db = client.tweets
-    db.tweets.insert_many(list_of_dicts)
+    return db
 
-def unique_users(collection_handle):
-    """Creates a new collection of unique users with count of tweets, to then query.
 
-    Parameters
-    ----------
-    collection_handle: pymongo.collection.collection
-        The name of the collection to find unique users of. It must have a
-        field called id
-    """
+def insert_into_db(database, list_of_dicts):
+    database.tweets.insert_many(list_of_dicts)
+    return database.tweets
 
-    cur = collection_handle.aggregate(
-        [
-            { "$group": { "_id": "$id_member", "count":{"$sum":1}}},
-            { "$sort": { "count": -1 } },
-            { "$out": "out_uni_users"}
-        ], allowDiskUse=True
-    )
 
-    count = db.out_uni_users.count()
-
-    print("There are {} unique users".format(count))
-
-    return db.out_uni_users, count
-
-def find_duplicates(collection_handle):
+def find_duplicates(collection_handle, database):
     """Finds duplicates within a collection.
 
     Parameters
@@ -129,7 +109,7 @@ def find_duplicates(collection_handle):
         ], allowDiskUse=True
     );
 
-    count = db.items_to_delete.count()
+    count = database.items_to_delete.count()
 
     print("There are {} duplicates".format(count))
 
@@ -137,18 +117,44 @@ def find_duplicates(collection_handle):
 
     removed = []
 
-    cur = db.items_to_delete.find()
+    cur = database.items_to_delete.find()
 
     for i in cur:
-        remove = db.tweets.delete_one({"id" : i['_id']})
+        remove = database.tweets.delete_one({"id" : i['_id']})
         removed.append(remove.deleted_count)
         print("Item removed")
 
     print("{} items removed".format(sum(removed)))
 
-    return db.items_to_delete, count
+    return database.items_to_delete, count
 
-def top_ten_tweet_perc(collection_handle, base_collection):
+
+def unique_users(collection_handle, database):
+    """Creates a new collection of unique users with count of tweets, to then query.
+
+    Parameters
+    ----------
+    collection_handle: pymongo.collection.collection
+        The name of the collection to find unique users of. It must have a
+        field called id
+    """
+
+    cur = collection_handle.aggregate(
+        [
+            { "$group": { "_id": "$id_member", "count":{"$sum":1}}},
+            { "$sort": { "count": -1 } },
+            { "$out": "out_uni_users"}
+        ], allowDiskUse=True
+    )
+
+    count = database.out_uni_users.count()
+
+    print("There are {} unique users".format(count))
+
+    return database.out_uni_users, count
+
+
+def top_ten_tweet_perc(collection_handle, database):
     """Calculates percentage of tweets published by top ten users
 
     Parameters
@@ -175,11 +181,12 @@ def top_ten_tweet_perc(collection_handle, base_collection):
 
     for document in cur:
         total_tweets = document["tweets_10"]
-        perc = (total_tweets/db.tweets.count())*100
+        perc = (total_tweets/database.tweets.count())*100
 
     print("The top 10 tweeters posted %.1f%% of the tweets" % perc)
 
     return total_tweets, perc
+
 
 def first_and_last(collection_handle):
     cur = collection_handle.aggregate(
@@ -202,11 +209,16 @@ def first_and_last(collection_handle):
 
     return first_time, last_time
 
-def mean_time_delta(collection_handle):
-# Two different stackoverflow questions suggest that this is impossible in
-# pure mongo queries therefore I am using python to be able to do this.
 
-    cur = collection_handle.find()
+def mean_time_delta(collection_handle):
+    # Two different stackoverflow questions suggest that this is impossible in
+    # pure mongo queries therefore I am using python to be able to do this.
+
+    cur = collection_handle.aggregate(
+        [
+            { "$sort": { "timestamp":1 }},
+        ], allowDiskUse=True
+    )
     first = True
     pattern = '%Y-%m-%d %H:%M:%S'
 
@@ -215,15 +227,17 @@ def mean_time_delta(collection_handle):
     for document in cur:
         if first is True:
             last_time = datetime.strptime(document["timestamp"],pattern)
+            print(last_time)
             first = False
         else:
             this_time = datetime.strptime(document["timestamp"],pattern)
-            time_delta = (last_time - first_time).total_seconds()
+            time_delta = (last_time - this_time).total_seconds()
             time_deltas.append(time_delta)
             last_time = this_time
 
     mean_time_delta = np.mean(time_deltas)
-    return mean_time_delta
+    return mean_time_delta, time_deltas
+
 
 def mean_length(collection_handle):
 
@@ -245,7 +259,8 @@ def mean_length(collection_handle):
     print("The mean text length is {}".format(m_length))
     return m_length
 
-def ngrams(collection_handle, n=1):
+
+def ngrams(collection_handle, database, n=1):
     top_ten_ngrams = []
     # Create map function
     if n == 1:
@@ -285,9 +300,9 @@ def ngrams(collection_handle, n=1):
                                           name, full_reponse=True)
 
     if n == 1:
-        coll = db.unigrams
+        coll = database.unigrams
     else:
-        coll = db.bigrams
+        coll = database.bigrams
 
     cur = coll.aggregate(
         [
@@ -307,6 +322,7 @@ def ngrams(collection_handle, n=1):
 
         print("The most common {}s are :".format(word), top_ten_ngrams)
     return top_ten_ngrams
+
 
 def mean_hash(collection_handle):
 
@@ -337,3 +353,67 @@ def mean_hash(collection_handle):
 
     print("The mean number of hashtags per message is {}".format(m_length))
     return m_length
+
+
+def run_entire_pipeline(filename):
+    # Filename is the csvfile to be given
+    list_of_dicts, bad_rows = load_csv(filename)
+
+    db = access_database()
+    db.tweets = insert_into_db(db, list_of_dicts)
+    db.items_to_delete, deleted_count = find_duplicates(db.tweets, db)
+
+    # Query number 1
+    database.out_uni_users, unique_count = unique_users(db.tweets, db)
+
+    # Query number 2
+    total_tweets_10, top_ten_perc = top_ten_tweet_perc(db.out_uni_users, db)
+
+    # Query number 3
+    first_time, last_time = first_and_last(db.tweets)
+
+    # Query number 4
+    mean_time_delta = mean_time_delta(db.tweets)
+
+    # Query number 5
+    mean_length = mean_length(db.tweets)
+
+    # Query number 6
+
+    top_ten_unigrams = ngrams(db.tweets, db, n=1)
+
+    top_ten_bigrams = ngrams(db.tweets, db, n=2)
+
+    # Query number 7
+
+    mean_hash = mean_hash(db.tweets)
+
+
+def just_queries():
+
+    db = access_database()
+
+    # Query number 1
+    database.out_uni_users, unique_count = unique_users(db.tweets, db)
+
+    # Query number 2
+    total_tweets_10, top_ten_perc = top_ten_tweet_perc(db.out_uni_users, db)
+
+    # Query number 3
+    first_time, last_time = first_and_last(db.tweets)
+
+    # Query number 4
+    mean_time_delta = mean_time_delta(db.tweets)
+
+    # Query number 5
+    mean_length = mean_length(db.tweets)
+
+    # Query number 6
+
+    top_ten_unigrams = ngrams(db.tweets, db, n=1)
+
+    top_ten_bigrams = ngrams(db.tweets, db, n=2)
+
+    # Query number 7
+
+    mean_hash = mean_hash(db.tweets)
