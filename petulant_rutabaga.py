@@ -438,7 +438,7 @@ def run_entire_pipeline(filename):
 
     # Query number 8
 
-    top_ten_places = area_agg(collection_handle, database, dp = 2)
+    top_ten_places = area_agg(db.tweets, db, dp = 2)
 
 
 def just_queries():
